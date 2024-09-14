@@ -1,0 +1,400 @@
+---
+title: "Ilustracija istraživanja baze Expenditure and Default Data"
+author: "Ines Pavlović, 052/2021"
+date: "2024-08-22"
+output: 
+  prettydoc::html_pretty:
+    theme: architect
+    toc: yes
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+## Uvodni deo
+
+Cilj ovog rada je ispitivanje baze podataka Expenditure and Default Data, koja sadrži različite podatke o rashodima i nepoštovanju obaveza prema banci od strane ispitanika - korisnika banke koji su podneli zahtev za odobravanje kreditne kartice.
+Ova baza podataka preuzeta je sa sajta Rdatasets (Greene, W.H., 2003) i sastoji se od cross-section podataka o istoriji kreditnih kartica ispitanika.
+
+Cross-section u ekonomiji i statistici odnosi se na vrstu podataka koji se prikupljaju u jednom određenom trenutku ili periodu za različite subjekte, kao što su pojedinci, domaćinstva, kompanije ili zemlje.
+Ovi podaci pružaju izgled informacija o različitim karakteristikama subjekata u istom vremenskom okviru, ali ne prate dalje njihove promene tokom vremena. To omogućava analizu trenutnog stanja i upoređivanje karakteristika među subjektima bez uvida u njihov vremenski razvoj.
+
+U ovom radu, osim drugih istraživanja, posebna pažnja posvećena je analizi verovatnoće odobravanja zahteva za kreditnu karticu na osnovu ranije kreditne istorije pojedinca, kao i medjusobnih veza izmedju numeričkih i kategoričkih obeležja.
+Takođe, istraživanje je obuhvatilo i identifikaciju ključnih faktora koji utiču na finansijsko ponašanje korisnika kreditnih kartica.
+
+#### Opis baze
+
+Baza se sastoji od 1319 redova, kao i 12 kolona. Sastoji se iz 3 kategorička i 9 numeričkih obeležja, ovde je predstavljeno privh nekoliko redova:
+
+```{r}
+podaci = read.csv("CreditCard.csv")
+head(podaci, 15)
+```
+Obeležje **card** označava da li je korisniku odobren ili odbijen zahtev za karticom.(binarno/kategoričko obeležje)
+
+Obeležje **reports** označava broj većih nepovoljnih izveštaja o kreditnoj istoriji. **Income** je godišnji prihod korisnika, izražen u desetinama hiljada dolara.
+
+Obeležje **age** predstavlja godine, koje su u deceimalnom obliku jer je 1 mesec, predstavljen kao 1/12 godine - dakle da neko ima 35 godina i 6 meseci, on bi u tabeli imao 35.5 godina.
+**Expenditure** je prosečna mesečna potrošnja putem kartice, u američkim dolarima. **Share** je odnos mesečne potrošnje putem kartice, u odnosu na godišnji prihod. Navedenih pet obeležja su numerička.
+
+**Owner** označava da li korisnik poseduje svoju nekretninu, a **selfemp** da li je samozaposlen(binarno/kategoričko), dok je **dependents** broj ljudi koje korisnik izdržava(na primer deca roditelja...), **months** broj meseci tokom kojih osoba živi na datoj adresi.**Majorcards** je broj najvažnijih(najvećih) kreditnih računa koje pojedinac poseduje, dok je **active** broj aktivnih kreditnih računa.
+
+
+## Kategorička i numerička obeležja
+
+#### Kategorička obeležja
+Za početak, posmatrana su binarna/kategorička obeležja.
+
+###### Card
+Posmatramo broj odbijenih i prihvaćenih zahteva, faktor su da i ne vrednosti.
+```{r}
+par(mfrow = c(1,2))
+pie(table(podaci$card),
+    main = "Odbijeni i odobreni zahtevi",
+    col = c("red", "blue"),
+    labels = c("Odbijen", "Odobren"))
+barplot(table(podaci$card),
+    main = "Odbijeni i odobreni zahtevi",
+    xlab = "Status zahteva",
+    ylab = "Broj zahteva",
+    col = c("red", "blue"),
+    names.arg = c("Odbijen", "Odobren"))
+```
+
+Na grafiku, primećuje se da je znatno veći broj ljudi kojima je zahtev za karticom odobren (čak preko 1000), dok je broj odbijenih zahteva oko 300, dakle nešto manje od četvrtine zahteva je odbijeno   (jer je poznato da je broj redova preko 1300). Ispod je navedenih i tačan broj odbijenih i odobrenih, izraženo i u procentima. Može se zaključiti da se kartica odobrava u 77% slučajeva.
+```{r}
+broj_kategorija <- table(podaci$card)
+
+print(broj_kategorija)
+procenat = (broj_kategorija / sum(broj_kategorija)) * 100
+print(procenat)
+```
+
+###### Owner
+Posmatra se broj ljudi koji poseduju nekretninu, faktor su da i ne vrednosti.
+```{r}
+par(mfrow = c(1,2))
+library(plotrix)
+pie3D(table(podaci$owner),
+    main = "Posed nekretnine",
+    col = c("red", "blue"),
+    labels = c("Ne", "Da"))
+barplot(table(podaci$owner),
+    main = "Posed nekretnine",
+    xlab = "Posed nekretnine",
+    ylab = "Broj redova",
+    col = c("red", "blue"),
+    names.arg = c("Ne", "Da"))
+```
+
+Broj osoba koji poseduju nekretninu mnogo je ujednačeniji u odnosu na broj odbijenih i prihvaćenih zahteva. Vidimo da je broj ljudi koji ne poseduju nekretninu nešto veći od broja ljudi koji je poseduju(oko 55%). Za naše istraživanje, ovo je dobra raspodeljenost parametra (pošto će fokus istraživanja biti uticaj različitih vrednosti na odobravanje zahteva).
+
+```{r}
+broj_kategorija <- table(podaci$owner)
+
+print(broj_kategorija)
+procenat = (broj_kategorija / sum(broj_kategorija)) * 100
+print(procenat)
+```
+
+###### Selfemp
+
+Posmatra se broj osoba koji je samozaposlen u odnosu na broj osoba koje rade za nekoga  
+```{r}
+par(mfrow = c(1,2))
+pie(table(podaci$selfemp),
+    main = "Da li je korisnik samozaposlen",
+    col = c("red", "blue"),
+    labels = c("Ne", "Da"))
+barplot(table(podaci$selfemp),
+    main = "Da li je korisnik samozaposlen",
+    xlab = "Samozaposlenost",
+    ylab = "Broj redova",
+    col = c("red", "blue"),
+    names.arg = c("Ne", "Da"))
+```
+Problem sa ovim obeležjem je što nije poznato da li su svi ljudi zaposleni (dakle, ako je neko nezaposlen, u koju kategoriju takav korisnik spada). Pretpostavićemo da su svi ljudi zaposleni, ako su im godišnji prihodi različiti od 0. Pogledajmo dalje da li postoje takvi korisnici, posmatramo minimum od income.
+
+```{r}
+interval = 1
+interval <- range(podaci$income)
+print(interval)
+```
+
+Kako ne postoji korisnik čiji je prihod 0, uzima se kao pretpostavka da nema nezaposlenih korisnika.
+
+```{r}
+broj_kategorija <- table(podaci$selfemp)
+
+print(broj_kategorija)
+procenat = (broj_kategorija / sum(broj_kategorija)) * 100
+print(procenat)
+```
+
+Primećuje se da je mnogo manji broj samozaposlenih, samo 91 od 1319 osoba, 7% od datog uzorka
+
+#### Faktorisanje drugih vrednosti
+
+Bilo bi dobro ispitati i koliko efekta ima broj ljudi koji zavisi od korisnika, pa za te potrebe možemo faktorisati vrednost dependents
+
+```{r}
+ima_zavisnih<- ifelse(podaci$reports > 0, 1, 0)
+barplot(table(ima_zavisnih),
+    main = "Da li neko zavisi od korisnika",
+    ylab = "Broj zahteva",
+    col = c("red", "blue"),
+    names.arg = c("Ne", "Da"))
+```
+
+Korisnike smo podelili u dve grupe: u prvoj, niko ne zavisi od prihoda korisnika, dok je u drugoj broj zavisnih osoba veći od 0
+
+Od koristi bi bilo još faktorisitati i jedno numeričko obeležje, broj većih negativnih izveštaja korisnika (obeležje reports). Dakle, moguće je podeliti korisnike na one koji su imali veće prestupe, i one koji nisu imali veće prestupe:
+```{r}
+prijavw <- ifelse(podaci$reports > 0, 1, 0)
+barplot(table(prijavw),
+    main = "Da li je nekad bio prijavljen",
+    ylab = "Broj zahteva",
+    col = c("red", "blue"),
+    names.arg = c("Ne", "Da"))
+```
+
+
+###### Testiranje zavisnosti
+
+Posmatrajmo zavisnost vrednosti card i vrednosti owner, a zatim vrednosti card i vrednosti selfemployed. Zavisnost posmatramo kako bi ustanovili koliko uticaj na odobrenje ima posed nekretnine (jer ona može predstavljati sigrnost banci za povrat novca u slučaju dugovanja, kao i da li je veća sigurnost za dobitak kartice ako korisnik nije samozaposlen). Koristiti će se chi kvadrat test. Pretpostavka će biti odbačena ako nam je p vrednost manja od 0.05, dakle sigurnost treba da bude veća od 95%.
+
+Prvo, testiramo vrednosti card i owner:
+```{r}
+card_and_owner = table(podaci$card, podaci$owner)
+card_and_owner
+
+```
+Zanimljivo je primetiti da samo 90 osoba koje imaju nekretninu, imaju odbijen zahtev. Sprovdimo sad Hi kvadrat test, sa sledećim hipotezama:
+
+H0: Nezavisne su
+
+H1: Zavisne su
+```{r}
+chisq.test(podaci$card, podaci$owner)
+```
+Šta su dobijene vrednosti? X-squared predstavlja parametar hi kvadrat statistike, df je stepen slobode, dok je p vrednost verovatnoća da su ovakve vrednosti nastale nasumično. U hi kvadrat testovima, za procenu sigurnosti uglavnom se uzima da je p vrednost manja od 0.05.
+
+Dakle, odbacuje se hipoteza H0, i dolazimo do zaključka da su ove dve vrednosti zavisne. 
+
+U sledećoj tabeli prikazana je zavisnost card i selfemp.
+```{r}
+zavisnost = table(podaci$card, podaci$selfemp)
+barplot(zavisnost, col = c("red", "blue"))
+```
+
+Vidimo da su odnosi broja korisnika koji su samozaposlen ujednačeni u obe kolone(slicnih proporcija).
+Posmatajmo ponovo test, samo za paramtre selfemp i card. H0 biće da su obelezja nezavisna, a H1 da su zavisna.
+
+```{r}
+ima_zavisnih<- ifelse(podaci$reports > 0, 1, 0)
+chisq.test(podaci$selfemp, podaci$card)
+```
+Kako je ovde p vrednost 0.06(veće od 0.05), ne odbacujemo hipotezu. Iako p vrednost jeste mala, nije manja od 0.05 tako da ne možemo odbaciti našu hipotezu, ove vrednosti su nezavisne.
+
+Posmatra se, sada da li broj osoba koje zavise od korisnika zavise od kolone card.
+
+```{r}
+barplot((table(ima_zavisnih, podaci$card)), main = "Da li ima zavisnih", col = c("red", "lightblue"))
+
+```
+Testirajmo sada hi kvadrat testom zavisnost ovih paramtera
+
+```{r}
+ima_zavisnih<- ifelse(podaci$reports > 0, 1, 0)
+chisq.test(ima_zavisnih, podaci$card)
+```
+Nulta hipoteza bila je da su ove vrednosti nezavisne. Medjutim, kako je p vrednost manja od 0.05, hipoteza se odbija i zaključujemo da su obeležja card i reports zavisna.
+
+Posmatra se, sada kolona reports u odnosu na kolonu card.
+
+```{r}
+barplot(t(table(podaci$report, podaci$card)), beside = TRUE, main = "Da li je kartica prihvacena u zavisnosti od broj prijava", xlab = "Broj prijava", col = c("pink", "red"))
+
+```
+Ružičastom bojom prikazan je broj odbijenih, dok crvenom broj odobrenih kartica. Primećuje se da je broj odobrenih prijava znatno veći kod osoba koje imaju 0 ili 1 prijavu, dok nakon toga, u slučajevima gde osoba ima 2 ili više prijave, više je odbijenih nego prihvaćenih. Možemo testirati posmatrane vrednosti:
+
+```{r}
+chisq.test(podaci$card, podaci$reports)
+```
+Nulta hipoteza bila je da su ove vrednosti nezavisne. Medjutim, kako je p vrednost manja od 0.05, hipoteza se odbija i zaključujemo da su obeležja card i reports zavisna.
+
+
+
+#### Numerička obeležja
+
+Posmatrajmo obeležje income (neprekidno numeričko obelezje).
+```{r}
+mean(podaci$income)
+prosecna_mesecna = (podaci$income)/12
+mean(prosecna_mesecna)
+median(podaci$income)
+var (podaci$income)
+sd (podaci$income)
+```
+Dakle, prosečna godišnja plata korisnika je 336,537 hiljada dolara, a prosecna mesečna plata je 28,0448 dolara. Kako je median income nešto manja u odnosu na prosečnu vrednost, zaključujemo da postoji blagi skok u platama (jer ima više ljudi sa platom manjom od prosečne). 
+Posmatra se još i standardna devijacija, kao i uzoračka disperzija.
+
+```{r}
+
+hist(podaci$income, prob = TRUE, col = "lightblue", main="Histogram za prikaz godisnje zarade", xlab="Zarada", ylab ="Učestalost")
+var(podaci$income)
+lines(density(podaci$income), col = "red", lwd =2)
+```
+
+Na histogramu primećujemo da je mnogo veći broj ispitanika sa nižom platom od prosečne. 
+Treba primetiti i da nema ispitanika koji imaju platu manju od 10 000, kao ni onih sa platom vecom od 110 000.
+
+Pogledajmo i raspon ove promenljive, kao i kvantile i interkvartilno rastojanje:
+```{r}
+quantile(podaci$income)
+IQR(podaci$income)
+range(podaci$income)
+
+```
+Primećujemo da je grafik asimetričan,jer je desni rep funkcije gustine raspodele znatno duži od desnog.
+
+```{r}
+
+```
+
+Sada se posmatraju obeležja expenditure, share i age, kao i njihove funkcije gustine raspodele
+
+```{r}
+par(mfrow = c(2,1))
+library(plotrix)
+plot (density(podaci$share), main = "Gustina Share", xlab = "share", ylab = "gustine", lwd = 2 )
+abline(v = mean(podaci$share), col = "blue", lwd = 1.5)
+plot (density(podaci$expenditure), main = "Gustina Expenditure", xlab = "expenditure", ylab = "gustine", lwd = 2 )
+abline(v = mean(podaci$expenditure), col = "blue", lwd = 1.5)
+```
+ 
+ Deluje da ova dva obeležja imaju sličnu raspodelu, pa možemo da uradimo KS test(Kolmogorov-Smirnovljev test) da bi ustanovili tačnost pretpostavke. Nulta hipoteza je da su oba obeležja iz iste distribucije
+```{r}
+```
+
+
+```{r}
+ks.test(podaci$share, podaci$expenditure)
+```
+
+
+```{r}
+```
+ Ovo su rezultati našeg testa.
+ 
+ Kako je p vrednost manja od 0.05, odbacujemo H0 pretpostavku(da su ova obeležja iz iste raspodele).
+ 
+ Ispod su navedene ostale osnovne statistike za ova dva obeležja
+ 
+```{r}
+summary(podaci$expenditure)
+```
+```{r}
+summary(podaci$share)
+```
+ Posmatramo sada obeležje age iz podataka.
+```{r}
+boxplot(podaci$age, prob = TRUE, col = "lightblue", main="Boxplot za prikaz prosecnog broja godina", xlab="Učestanost", ylab ="Broj godina")
+
+plot (density(podaci$age), main = "Gustina godina", xlab = "godine", lwd = 2 )
+
+```
+ 
+ Vidimo da postoji veći broj outlejera za broj godina veći od 60. 
+ 
+ Iako ima outlajere i nije potpuno simetrična, gustina raspodele broja godina podseća na grafik normalne raspodele, pa je dobro uraditi KS test
+ 
+```{r}
+ks.test(podaci$age, pnorm(nrow(podaci),mean(podaci$age), var(podaci$age)))
+```
+Kako je p vrednost manja od 0.05, odbacuje se nulta hipoteza, da age ima normalnu raspodelu.
+
+Posmatrajmo sada numeričko obeležje dependents
+```{r}
+boxplot(podaci$dependents, prob = TRUE, col = "lightblue", main="Boxplot za prikaz prosecnog broja godina", xlab="Učestanost", ylab ="Broj godina")
+
+```
+
+Primećujemo da se vrednosti ove varijable generalno kreću izmedju 0 i 2, sa ponekim izuetkom(nema značajnih razlikau podacima).
+
+
+Moguće je izvršiti podelu prema više faktora. Znamo da je podela na posed nekretnine u odnosu 55:45.
+
+```{r}
+poseduju = subset(podaci, podaci$owner=="yes")
+nemaju = subset(podaci, podaci$owner=="no")
+
+```
+
+Koristimo nepovezani t-test, bez obzira na to što smo zaključili da ne možemo odbaciti hipotezu da age nema normalnu raspodelu( pošto radimo sa velikim skupom podataka i raspodela ne odskače previše od normalne)
+
+```{r}
+t.test(poseduju$age, nemaju$age, var.equal = TRUE)
+```
+Kako je p-vrednost manja od 0.05, odbacujemo našu hipotezu i zakljucujmo da postoje znacajne razlike u srednjim vrednostima ovih podgrupa
+```{r}
+mean(nemaju$age)
+mean(poseduju$age)
+```
+Vidimo da je prosek čak za 10 godina veći kod ljudi koji poseduju nekretninu, u odnosu na one koji ne poseduju nekretninu.
+
+
+## Spirmanov test korelisanosti
+
+Kako za obeležje income ne možemo zaključiuti normalnu raspodelu, koristićemo Spirmanov test za korelisanost.
+
+Ispitujemo zavisnost obeležja age i obeležja income(iako smatramo da age ima normalnu raspodelu, možemo ga koristiti zbog postojanja skokova u vrednosti)
+
+Spearmanov rang-korelacioni koeficijent meri snagu i pravac monotone veze između dve varijable. Ovaj koeficijent se koristi kada varijable nisu nužno normalno distribuirane ili kada su podaci ordinalni.
+
+Nulta hipoteza (H0): Nema monotone veze između varijabli (Spearmanov koeficijent korelacije ρ = 0).
+Alternativna hipoteza (H1): Postoji monotona veza između varijabli (Spearmanov koeficijent korelacije ρ ≠ 0).
+
+Spearmanov koeficijent korelacije se izračunava kao:
+р= 1-6 *(sum(di)/(n*(n^2-1). 
+
+Raspodela test statistike pri H0:
+
+Kada je nulta hipoteza tačna, Spearmanov koeficijent korelacije prati raspodelu sličnu raspodeli t-distribucije sa n-2 stepeni slobode u malim uzorcima. U velikim uzorcima, raspodela je približno normalna.
+U r-u postoji ugradjena funkcija, koja implementira ovaj test, pa cemo je prvo pomocu nje implementirati test.
+
+```{r}
+cor.test(podaci$income, podaci$age, method = "spearman", exact = FALSE)
+```
+.Kako je p vrednost veoma mala, možemo odbaciti nultu hipotezu i zaključiti da su ova obeležja zavisna, treba još implementirati ovaj test ručno:
+```{r}
+rank1 = rank(podaci$age)
+rank2 = rank(podaci$income)
+
+
+D = rank1-rank2
+Dkvadrat = D^2
+
+n  = nrow(podaci)
+rho = 1 - (6 * sum(Dkvadrat)) / (n * (n^2 - 1))
+
+
+t_statistic <- rho * sqrt(n - 2) / sqrt(1 - rho^2)
+
+
+p =  2 * pt(-abs(t_statistic), df = n - 2)
+
+print(p)
+```
+Koristili smo t statistiku, sa n-2 stepena slobode. Mi smo dobili još manju vrednost nego sa ugradjenim testom, tako da se u oba slučaja odbacuje H0 hipoteza da su ova obeležja, dakle postoji monotona veza izmedju obeležja.
+
+## Zaključak
+
+Prilikom ispitivanja kategoričkih vrednosti i zavisnosti medju njima, zaključili smo da postoji zavisnost izmedju kolona card i owner, kao i card i reports(osobe koje poseduju nekretninu, kao i osobe koje nisu imale više od 1 prijave, imaju veću verovatnoću da im zahtev za karticom bude odobren). Takodje, postoji zavisnost izmedju broja ljudi koji zavise od osobe - ako od nje ne zavisi niko, mnogo je veća verovatnoća da će joj kartica biti odobrena. Nismo pronašli nijednu sličnost raspodele sa našim numeričkim obeležjima, osim grafika za age, koji podseća na normalnu raspodelu.  Zaključili smo da obeležje share(odnos godišnje i mesečne potrošnje) i mesečna potrošnja, nemaju jednaku raspodelu, što nam govori da nema jasne relacije o količini utrošenog novca i dobitka istog(ljudi troše različito).
+Vršili smo podelu po grupama, po tome da li neko poseduje nekretnininu ili ne, i došli do zaključaka da je prosek osoba koje poseduju nekretninu za skoro 10 godina veći nego onih koji ne poseduju nekretninu. Na kraju rada, urađen je Spirmanov test korelisanosti, na osnovu kog je ustanovljena korelisanost izmedju obeležja age i income.
+
+Zaključak: Više faktora utiče na odbijanje zahteva za karticu, našli smo direktnu povezanost sa parametrima dependent, owner i reports. Nije pronadjena povezanost sa parametrom selfemp. Takođe, kako smo uvideli da je i owner povezano sa age, a age sa income, dalja istraživanja mogla bi biti ispitivanja zavisnosti ovih obeležja sa odobravanjem/odbijanjem kartice.
+
+Rad bi mogao biti unapredjen ispitivanjem preostalih numeričkih obeležja, ispitivanjem povezanosti dependents i expendeture(koliko neko troši u odnosu na broj ljudi koji od njega zavisi), a zatim i posmatranjem tog odnosa i odobravanja/odbijanja kartice. Mogla bi se testirati i povezanost izmedju majorcards i active(broja većih i aktivnih računa), kao i broja aktivnih kreditnih računa i obeležja(card). 
+
+Ines Pavlović
